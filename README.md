@@ -7,6 +7,7 @@
 
 <p align="center">
   <a href="https://github.com/Sahil-u07/wouldcatch/actions/workflows/ci.yml"><img src="https://github.com/Sahil-u07/wouldcatch/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://pypi.org/project/wouldcatch/"><img src="https://img.shields.io/pypi/v/wouldcatch" alt="PyPI"></a>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/dependencies-0-brightgreen" alt="Zero dependencies">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license"></a>
@@ -17,11 +18,11 @@
 </p>
 
 ```bash
-pipx install git+https://github.com/Sahil-u07/wouldcatch
+pipx install wouldcatch
 cd your-repo && wouldcatch
 ```
 
-On Windows without pipx: `py -m pip install git+https://github.com/Sahil-u07/wouldcatch`, then run `wouldcatch` from PowerShell or Windows Terminal.
+On Windows without pipx: `py -m pip install wouldcatch`, then run `wouldcatch` from PowerShell or Windows Terminal.
 
 No config. No dependencies. Works on any git repo with pytest (or any test command).
 
@@ -105,7 +106,7 @@ RETRY_DELAY = 5  # wouldcatch: ignore
 - uses: actions/checkout@v5
   with:
     fetch-depth: 0
-- run: pip install git+https://github.com/Sahil-u07/wouldcatch pytest
+- run: pip install wouldcatch pytest
 - run: wouldcatch --base origin/${{ github.base_ref }}
 ```
 
