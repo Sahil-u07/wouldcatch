@@ -41,7 +41,7 @@ LOG_EVERY = 100  # wouldcatch: ignore
 ## In CI (GitHub Actions)
 
 ```yaml
-- uses: actions/checkout@v4
+- uses: actions/checkout@v5
   with:
     fetch-depth: 0
 - run: pip install git+https://github.com/Sahil-u07/wouldcatch

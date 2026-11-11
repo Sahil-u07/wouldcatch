@@ -9,7 +9,7 @@ description = "Would your tests catch a bug in the lines you just changed? Mutat
 readme = "README.md"
 license = { text = "MIT" }
 authors = [{ name = "Sahil Lenka" }]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = []
 keywords = ["mutation-testing", "testing", "pytest", "git", "code-review", "ai-agents"]
 classifiers = [
