@@ -1,0 +1,7 @@
+- id: wouldcatch
+  name: wouldcatch
+  description: Check that your tests would catch bugs in the lines you changed.
+  entry: wouldcatch
+  language: python
+  pass_filenames: false
+  always_run: true
