@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wouldcatch"
+dynamic = ["version"]
+description = "Would your tests catch a bug in the lines you just changed? Mutation testing for your git diff."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Sahil Lenka" }]
+requires-python = ">=3.9"
+dependencies = []
+keywords = ["mutation-testing", "testing", "pytest", "git", "code-review", "ai-agents"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Testing",
+]
+
+[project.urls]
+Homepage = "https://github.com/Sahil-u07/wouldcatch"
+Issues = "https://github.com/Sahil-u07/wouldcatch/issues"
+
+[project.scripts]
+wouldcatch = "wouldcatch.cli:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "wouldcatch.__version__" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

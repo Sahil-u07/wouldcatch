@@ -1,0 +1,48 @@
+from wouldcatch.mutate import find_mutants
+
+
+def muts(src, lines=None):
+    lines = lines or set(range(1, src.count("\n") + 2))
+    return {(m.line, m.original.strip(), m.replacement.strip()) for m in find_mutants("x.py", src, lines)}
+
+
+def test_compare_ops():
+    got = muts("a < b\na <= b\na == b\na is not b\na not in b\n")
+    assert (1, "<", "<=") in got
+    assert (2, "<=", "<") in got
+    assert (3, "==", "!=") in got
+    assert (4, "is not", "is") in got
+    assert (5, "not in", "in") in got
+
+
+def test_lt_does_not_match_inside_lte_or_star_inside_pow():
+    got = muts("a <= b\nc = a ** b\n")
+    assert (1, "<", "<=") not in got
+    assert not any(orig == "*" for _, orig, _ in got)
+
+
+def test_arith_bool_const_return_if():
+    got = muts("def f(a, b):\n    x = a + b\n    x += 1\n    if a and b:\n        return True\n    return x\n")
+    assert (2, "+", "-") in got
+    assert (3, "+=", "-=") in got
+    assert (3, "1", "2") in got
+    assert (4, "and", "or") in got
+    assert (4, "a and b", "not (a and b)") in got
+    assert (5, "True", "False") in got
+    assert (6, "x", "None") in got
+
+
+def test_only_changed_lines_and_ignore_pragma():
+    src = "a = 1\nb = 2  # wouldcatch: ignore\nc = 3\n"
+    assert {line for line, _, _ in muts(src)} == {1, 3}
+    assert {line for line, _, _ in muts(src, {3})} == {3}
+
+
+def test_unicode_columns_and_formatting_kept():
+    src = 'name = "héllo"; ok = len(name) > 3  # keep me\n'
+    (m,) = [m for m in find_mutants("x.py", src, {1}) if m.original == ">"]
+    assert m.apply(src) == 'name = "héllo"; ok = len(name) >= 3  # keep me\n'
+
+
+def test_syntax_error_file_gives_nothing():
+    assert muts("def (:\n") == set()
