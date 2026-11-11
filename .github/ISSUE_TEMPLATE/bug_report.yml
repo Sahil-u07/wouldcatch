@@ -1,0 +1,26 @@
+name: Bug report
+description: wouldcatch did something wrong
+labels: [bug]
+body:
+  - type: textarea
+    attributes:
+      label: What happened
+      description: The command you ran and the output you got.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Smallest code that shows it
+      description: A few lines of the changed code, if you can share them.
+      render: python
+  - type: input
+    attributes:
+      label: Versions
+      description: Output of `wouldcatch --version`, `python --version` and your OS.
+    validations:
+      required: true

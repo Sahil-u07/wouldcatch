@@ -46,3 +46,21 @@ def test_unicode_columns_and_formatting_kept():
 
 def test_syntax_error_file_gives_nothing():
     assert muts("def (:\n") == set()
+
+
+def test_false_and_return_constants():
+    got = muts("def f():\n    if x:\n        return 5\n    return None\nok = False\n")
+    assert (3, "5", "None") in got
+    assert not any(line == 4 and rep == "None" for line, _, rep in got)
+    assert (5, "False", "True") in got
+
+
+def test_describe_shortens_long_code():
+    (m,) = [m for m in find_mutants("x.py", "def f():\n    return " + "a" * 80 + "\n", {2})]
+    assert len(m.describe()) < 100 and "..." in m.describe()
+
+
+def test_crlf_and_form_feed_offsets():
+    src = "a = 1\r\n\x0cb = x < y\r\n"
+    (m,) = [m for m in find_mutants("x.py", src, {2}) if m.original == "<"]
+    assert m.apply(src) == "a = 1\r\n\x0cb = x <= y\r\n"

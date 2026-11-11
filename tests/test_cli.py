@@ -82,3 +82,11 @@ def test_interrupted_run_is_restored(repo, capsys):
     (repo / "test_calc.py").write_text(STRONG_TEST)
     run(capsys)
     assert (repo / "calc.py").read_text() == CALC_NEW
+
+
+def test_crlf_file_restored_byte_for_byte(repo, capsys):
+    crlf = CALC_NEW.replace("\n", "\r\n").encode()
+    (repo / "calc.py").write_bytes(crlf)
+    (repo / "test_calc.py").write_text(WEAK_TEST)
+    run(capsys)
+    assert (repo / "calc.py").read_bytes() == crlf

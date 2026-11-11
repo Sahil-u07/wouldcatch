@@ -14,7 +14,22 @@ from .diff import changed_lines, pick_base, repo_root
 from .mutate import find_mutants
 
 BACKUP = ".wouldcatch-backup.json"
+COLOR = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
 DEFAULT_CMD = f'"{sys.executable}" -m pytest -x -q -p no:cacheprovider'
+
+
+def read(path):
+    with open(path, encoding="utf-8", newline="") as f:  # keep CRLF as-is
+        return f.read()
+
+
+def write(path, text):
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        f.write(text)
+
+
+def paint(text, code):
+    return f"\033[{code}m{text}\033[0m" if COLOR else text
 
 
 def run_tests(cmd, root, timeout):
@@ -35,20 +50,20 @@ def restore_stale_backup(root):
     backup = root / BACKUP
     if backup.exists():
         for path, text in json.loads(backup.read_text(encoding="utf-8")).items():
-            (root / path).write_text(text, encoding="utf-8", newline="")
+            write(root / path, text)
             print(f"wouldcatch: restored {path} from an interrupted run", file=sys.stderr)
         backup.unlink()
 
 
 def test_mutant(m, root, cmd, timeout):
     target, backup = root / m.path, root / BACKUP
-    original = target.read_text(encoding="utf-8")
+    original = read(target)
     backup.write_text(json.dumps({m.path: original}), encoding="utf-8")
     try:
-        target.write_text(m.apply(original), encoding="utf-8", newline="")
+        write(target, m.apply(original))
         result = run_tests(cmd, root, timeout)
     finally:
-        target.write_text(original, encoding="utf-8", newline="")
+        write(target, original)
         backup.unlink()
     return {"passed": "missed", "failed": "caught", "timeout": "caught"}[result]
 
@@ -80,7 +95,7 @@ def main(argv=None):
 
     mutants = []
     for path, lines in sorted(changes.items()):
-        text = (root / path).read_text(encoding="utf-8")
+        text = read(root / path)
         mutants += find_mutants(path, text, lines)
     skipped = max(0, len(mutants) - args.max)
     mutants = mutants[: args.max]
@@ -116,10 +131,12 @@ def main(argv=None):
     else:
         for m in mutants:
             if m.status == "missed" or args.all:
-                print(f"  {'MISSED' if m.status == 'missed' else 'caught'}  {m.path}:{m.line}  {m.describe()}")
-        print(f"\n{caught}/{len(mutants)} caught.", end=" ")
+                label = paint("MISSED", "1;31") if m.status == "missed" else paint("caught", "32")
+                print(f"  {label}  {paint(f'{m.path}:{m.line}', '36')}  {m.describe()}")
+        print(paint(f"\n{caught}/{len(mutants)} caught.", "1;32" if not missed else "1"), end=" ")
         if missed:
-            print(f"{len(missed)} bug(s) your tests would not notice. Add a test that fails for each MISSED line.")
+            print(paint(f"{len(missed)} bug(s) your tests would not notice.", "31"),
+                  "Add a test that fails for each MISSED line.")
         else:
             print("Your tests would notice every one of these bugs.")
         if skipped:

@@ -34,15 +34,17 @@ class Mutant:
     def apply(self, text):
         return text[: self.start] + self.replacement + text[self.end :]
 
-    def describe(self):
-        return f"`{self.original.strip()}` -> `{self.replacement.strip()}`"
+    def describe(self, width=40):
+        short = lambda s: s if len(s) <= width else s[: width - 3] + "..."
+        return f"`{short(' '.join(self.original.split()))}` -> `{short(' '.join(self.replacement.split()))}`"
 
 
 class _Offsets:
     """ast columns are UTF-8 byte offsets; convert them to str indexes."""
 
     def __init__(self, text):
-        self.lines = text.splitlines(keepends=True)
+        # Only \r\n, \r and \n end a line for ast; str.splitlines also splits on \f etc.
+        self.lines = re.findall(r"[^\r\n]*(?:\r\n|\r|\n|$)", text)
         self.starts = [0]
         for line in self.lines:
             self.starts.append(self.starts[-1] + len(line))
@@ -63,7 +65,7 @@ def find_mutants(path, text, lines):
     except SyntaxError:
         return []
     off = _Offsets(text)
-    src = text.splitlines()
+    src = [line.rstrip("\r\n") for line in off.lines]
     out = []
 
     def add(line, start, end, replacement):
@@ -75,8 +77,7 @@ def find_mutants(path, text, lines):
         a, b = _span(off, left)[1], _span(off, right)[0]
         gap = text[a:b]
         m = re.search(pattern if pattern.startswith("\\") else re.escape(pattern), gap)
-        # "<" must not match the "<" inside "<=", nor "*" inside "**"
-        if m and gap[m.end() : m.end() + 1] not in ("=", "*") and gap[m.start() - 1 : m.start()] != "*":
+        if m and gap[m.end() : m.end() + 1] != "=":  # "<" must not match inside "<="
             add(line, a + m.start(), a + m.end(), replacement)
 
     for node in ast.walk(tree):

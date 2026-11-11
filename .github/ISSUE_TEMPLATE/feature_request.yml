@@ -1,0 +1,13 @@
+name: Feature request
+description: Suggest a new mutation, option or language
+labels: [enhancement]
+body:
+  - type: textarea
+    attributes:
+      label: The problem
+      description: What can't you do today? A bug your tests missed that wouldcatch didn't try is a great example.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: What you'd like wouldcatch to do
