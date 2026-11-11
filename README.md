@@ -21,6 +21,8 @@ pipx install git+https://github.com/Sahil-u07/wouldcatch
 cd your-repo && wouldcatch
 ```
 
+On Windows without pipx: `py -m pip install git+https://github.com/Sahil-u07/wouldcatch`, then run `wouldcatch` from PowerShell or Windows Terminal.
+
 No config. No dependencies. Works on any git repo with pytest (or any test command).
 
 ## Green tests can still miss bugs

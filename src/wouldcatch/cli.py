@@ -15,6 +15,8 @@ from .mutate import find_mutants
 
 BACKUP = ".wouldcatch-backup.json"
 COLOR = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
+if COLOR and os.name == "nt":
+    os.system("")  # turns on ANSI colors in the classic Windows console
 DEFAULT_CMD = f'"{sys.executable}" -m pytest -x -q -p no:cacheprovider'
 
 
