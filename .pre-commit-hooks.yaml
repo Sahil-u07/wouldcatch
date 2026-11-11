@@ -2,6 +2,6 @@
   name: wouldcatch
   description: Check that your tests would catch bugs in the lines you changed.
   entry: wouldcatch
-  language: python
+  language: system  # runs in your environment, where your project and pytest are installed
   pass_filenames: false
   always_run: true

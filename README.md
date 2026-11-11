@@ -107,7 +107,7 @@ RETRY_DELAY = 5  # wouldcatch: ignore
 - run: wouldcatch --base origin/${{ github.base_ref }}
 ```
 
-**pre-commit**, before every commit:
+**pre-commit**, before every commit (with wouldcatch installed in your project environment):
 
 ```yaml
 - repo: https://github.com/Sahil-u07/wouldcatch
