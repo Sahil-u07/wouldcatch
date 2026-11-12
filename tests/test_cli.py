@@ -90,3 +90,91 @@ def test_crlf_file_restored_byte_for_byte(repo, capsys):
     (repo / "test_calc.py").write_text(WEAK_TEST)
     run(capsys)
     assert (repo / "calc.py").read_bytes() == crlf
+
+
+def test_feature_branch_uses_fork_point(repo, capsys):
+    (repo / "test_calc.py").write_text(STRONG_TEST)
+    sh("git", "add", ".", cwd=repo)
+    sh("git", "commit", "-qm", "base", cwd=repo)
+    trunk = subprocess.run(["git", "branch", "--show-current"], cwd=repo, capture_output=True, text=True).stdout.strip()
+    sh("git", "checkout", "-qb", "feature", cwd=repo)
+    (repo / "calc.py").write_text(CALC_NEW.replace("10", "20").replace("190", "180"))
+    sh("git", "commit", "-qam", "one", cwd=repo)
+    (repo / "notes.py").write_text("X = 1\n")
+    sh("git", "add", ".", cwd=repo)
+    sh("git", "commit", "-qm", "two", cwd=repo)
+    from wouldcatch.diff import changed_lines, pick_base
+    base = pick_base(repo)
+    fork = subprocess.run(["git", "rev-parse", trunk], cwd=repo, capture_output=True, text=True).stdout.strip()
+    assert fork == base
+    assert set(changed_lines(repo, base)) == {"calc.py", "notes.py"}  # both commits, not just the last
+
+
+def test_github_annotations(repo, capsys, monkeypatch):
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+    (repo / "test_calc.py").write_text(WEAK_TEST)
+    main(["--github", "--cmd", f'"{sys.executable}" -m pytest -q -p no:cacheprovider'])
+    out = capsys.readouterr()
+    lines = [l for l in out.out.splitlines() if l.startswith("::warning ")]
+    assert lines and all("file=calc.py,line=" in l for l in lines)
+    assert "about" in out.err  # timing estimate
+
+
+def test_json_has_no_annotations_even_in_actions(repo, capsys, monkeypatch):
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    (repo / "test_calc.py").write_text(WEAK_TEST)
+    code, out = run(capsys)  # would raise if annotations broke the JSON
+    assert code == 1
+
+
+def test_no_color_rules():
+    from wouldcatch.cli import use_color
+
+    class Tty:
+        def isatty(self):
+            return True
+
+    class Pipe:
+        def isatty(self):
+            return False
+
+    import os
+    old = os.environ.pop("NO_COLOR", None)
+    try:
+        assert use_color(Tty()) and not use_color(Pipe())
+        os.environ["NO_COLOR"] = "1"
+        assert not use_color(Tty())
+    finally:
+        os.environ.pop("NO_COLOR", None)
+        if old is not None:
+            os.environ["NO_COLOR"] = old
+
+
+def test_duration_and_timeout():
+    from wouldcatch.cli import duration, timeout_for
+    assert duration(89) == "89s"
+    assert duration(90) == "2 min"
+    assert duration(3000) == "50 min"
+    assert timeout_for(1) == 10.0
+    assert timeout_for(5) == 15.0
+
+
+def test_annotations_turn_on_inside_github_actions(repo, capsys, monkeypatch):
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    (repo / "test_calc.py").write_text(WEAK_TEST)
+    main(["--cmd", f'"{sys.executable}" -m pytest -q -p no:cacheprovider', "--max", "3"])
+    assert "::warning " in capsys.readouterr().out
+
+
+def test_branch_on_trunk_uses_last_commit(repo):
+    # HEAD is on "main"; another trunk name ("master") points further back.
+    # Being on a trunk must win, so the base is the last commit, not the old fork point.
+    sh("git", "add", ".", cwd=repo)
+    sh("git", "commit", "-qm", "b", cwd=repo)
+    (repo / "x.py").write_text("X = 1\n")
+    sh("git", "add", ".", cwd=repo)
+    sh("git", "commit", "-qm", "c", cwd=repo)
+    sh("git", "branch", "-M", "main", cwd=repo)
+    sh("git", "branch", "-f", "master", "HEAD~2", cwd=repo)
+    from wouldcatch.diff import pick_base
+    assert pick_base(repo) == "HEAD~1"

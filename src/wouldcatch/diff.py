@@ -34,10 +34,20 @@ def untracked(root):
 
 
 def pick_base(root):
-    """Uncommitted changes if there are any, otherwise the last commit."""
+    """Uncommitted changes if there are any; on a feature branch, everything since
+    it split from main; otherwise the last commit."""
     dirty = git("diff", "--name-only", "HEAD", "--", "*.py", cwd=root).strip()
     if dirty or untracked(root):
         return "HEAD"
+    head = git("rev-parse", "HEAD", cwd=root).strip()
+    for trunk in ("main", "master", "origin/main", "origin/master"):
+        try:
+            fork = git("merge-base", "HEAD", trunk, cwd=root).strip()
+        except RuntimeError:
+            continue
+        if fork != head:
+            return fork
+        break  # HEAD is on the trunk itself
     return "HEAD~1"
 
 

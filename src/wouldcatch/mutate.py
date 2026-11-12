@@ -19,6 +19,7 @@ COMPARE = {
 }
 BINARY = {ast.Add: ("+", "-"), ast.Sub: ("-", "+"), ast.Mult: ("*", "/"), ast.Div: ("/", "*")}
 BOOL = {ast.And: (r"\band\b", "or"), ast.Or: (r"\bor\b", "and")}
+SWAP_CALL = {"min": "max", "max": "min"}
 
 
 @dataclass
@@ -109,6 +110,12 @@ def find_mutants(path, text, lines):
         elif isinstance(node, ast.Return) and node.value is not None:
             if not (isinstance(node.value, ast.Constant) and node.value.value is None):
                 add(line, *_span(off, node.value), "None")
+        elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in SWAP_CALL:
+            add(line, *_span(off, node.func), SWAP_CALL[node.func.id])
+        elif isinstance(node, ast.Break):
+            add(line, *_span(off, node), "continue")
+        elif isinstance(node, ast.Continue):
+            add(line, *_span(off, node), "break")
         elif isinstance(node, (ast.If, ast.While)):
             a, b = _span(off, node.test)
             add(line, a, b, f"not ({text[a:b]})")

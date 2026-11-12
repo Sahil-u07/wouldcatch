@@ -64,3 +64,16 @@ def test_crlf_and_form_feed_offsets():
     src = "a = 1\r\n\x0cb = x < y\r\n"
     (m,) = [m for m in find_mutants("x.py", src, {2}) if m.original == "<"]
     assert m.apply(src) == "a = 1\r\n\x0cb = x <= y\r\n"
+
+
+def test_min_max_swap():
+    got = muts("a = max(x, y)\nb = min(x, y)\nc = mymax(x)\n")
+    assert (1, "max", "min") in got
+    assert (2, "min", "max") in got
+    assert not any(line == 3 for line, _, _ in got)
+
+
+def test_break_continue_swap():
+    got = muts("for i in x:\n    if i:\n        break\n    continue\n")
+    assert (3, "break", "continue") in got
+    assert (4, "continue", "break") in got

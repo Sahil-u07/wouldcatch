@@ -1,0 +1,44 @@
+name: wouldcatch
+description: Find the bugs your tests would miss in the lines a pull request changes.
+author: Sahil Lenka
+branding:
+  icon: check-circle
+  color: red
+
+inputs:
+  base:
+    description: Git ref to compare against. Defaults to the pull request's base branch.
+    default: ""
+  cmd:
+    description: Test command. Defaults to pytest.
+    default: ""
+  max:
+    description: Maximum number of mutants to try.
+    default: "50"
+  fail-on-missed:
+    description: Fail the job when a mutant is missed.
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Install wouldcatch
+      shell: bash
+      run: python -m pip install --quiet "${{ github.action_path }}"
+    - name: Run wouldcatch
+      shell: bash
+      env:
+        WC_BASE: ${{ inputs.base || (github.base_ref && format('origin/{0}', github.base_ref)) || '' }}
+        WC_CMD: ${{ inputs.cmd }}
+        WC_MAX: ${{ inputs.max }}
+        WC_FAIL: ${{ inputs.fail-on-missed }}
+      run: |
+        args=(--github --max "$WC_MAX")
+        [ -n "$WC_BASE" ] && args+=(--base "$WC_BASE")
+        [ -n "$WC_CMD" ] && args+=(--cmd "$WC_CMD")
+        set +e
+        wouldcatch "${args[@]}"
+        code=$?
+        set -e
+        if [ "$code" = 1 ] && [ "$WC_FAIL" != "true" ]; then code=0; fi
+        exit "$code"

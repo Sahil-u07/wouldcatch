@@ -14,7 +14,11 @@ from .diff import changed_lines, pick_base, repo_root
 from .mutate import find_mutants
 
 BACKUP = ".wouldcatch-backup.json"
-COLOR = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
+def use_color(stream):
+    return stream.isatty() and not os.environ.get("NO_COLOR")
+
+
+COLOR = use_color(sys.stdout)
 if COLOR and os.name == "nt":
     os.system("")  # turns on ANSI colors in the classic Windows console
 DEFAULT_CMD = f'"{sys.executable}" -m pytest -x -q -p no:cacheprovider'
@@ -70,6 +74,21 @@ def test_mutant(m, root, cmd, timeout):
     return {"passed": "missed", "failed": "caught", "timeout": "caught"}[result]
 
 
+def duration(seconds):
+    return f"{seconds:.0f}s" if seconds < 90 else f"{seconds / 60:.0f} min"
+
+
+def timeout_for(baseline):
+    return max(10.0, 3 * baseline)
+
+
+def annotation(m):
+    """A GitHub Actions workflow command: shows up on that line of the PR diff."""
+    msg = f"No test fails if {m.describe()} here. Add a test that catches it.".replace("%", "%25")
+    path = m.path.replace("%", "%25").replace(":", "%3A").replace(",", "%2C")
+    return f"::warning file={path},line={m.line},title=wouldcatch - untested change::{msg}"
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="wouldcatch", description=__doc__)
     ap.add_argument("--base", help="git ref to diff against (default: uncommitted changes, else last commit)")
@@ -77,6 +96,8 @@ def main(argv=None):
     ap.add_argument("--max", type=int, default=50, help="max mutants to try (default: 50)")
     ap.add_argument("--json", action="store_true", help="print results as JSON (for scripts and AI agents)")
     ap.add_argument("--all", action="store_true", help="list caught mutants too")
+    ap.add_argument("--github", action="store_true",
+                    help="also print GitHub Actions annotations (on by default inside GitHub Actions)")
     ap.add_argument("--version", action="version", version=f"wouldcatch {__version__}")
     args = ap.parse_args(argv)
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))  # still runs the restore in `finally`
@@ -114,7 +135,10 @@ def main(argv=None):
         print("wouldcatch: your tests fail before any change. Fix them first.\n"
               f"  command: {args.cmd}", file=sys.stderr)
         return 2
-    timeout = max(10.0, 3 * (time.time() - t0))
+    baseline = time.time() - t0  # wouldcatch: ignore (wall-clock time, not testable exactly)
+    timeout = timeout_for(baseline)
+    log(f"wouldcatch: tests take {duration(baseline)}, so about {duration(baseline * len(mutants))} "  # wouldcatch: ignore (log text)
+        f"for {len(mutants)} mutants. Narrow --cmd to go faster.")
 
     for i, m in enumerate(mutants, 1):
         log(f"  [{i}/{len(mutants)}] {m.path}:{m.line} {m.describe()}", end="\r" if sys.stderr.isatty() else "\n")
@@ -143,6 +167,9 @@ def main(argv=None):
             print("Your tests would notice every one of these bugs.")
         if skipped:
             print(f"({skipped} more mutants not tried; raise --max to try them.)")
+        if args.github or os.environ.get("GITHUB_ACTIONS") == "true":
+            for m in missed:
+                print(annotation(m))
     return 1 if missed else 0
 
 

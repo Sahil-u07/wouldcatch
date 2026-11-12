@@ -31,5 +31,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
-      - run: pip install -e . pytest
-      - run: wouldcatch --base origin/${{ github.base_ref }} --cmd "python -m pytest -q -x -p no:cacheprovider"
+      - run: pip install pytest
+      - uses: ./  # this repo's own action, so every PR tests it
+        with:
+          cmd: python -m pytest -q -x -p no:cacheprovider

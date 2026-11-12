@@ -93,6 +93,8 @@ One change at a time, only on lines in your diff. Test files are never mutated.
 | Logic | `and` -> `or`, `not x` -> `x` | each side of a condition |
 | Constants | `True` -> `False`, `100` -> `101` | exact values and limits |
 | Returns | `return total` -> `return None` | the return value at all |
+| Calls | `max(a, b)` -> `min(a, b)` | which of two values wins |
+| Loops | `break` -> `continue` | how a loop ends early |
 | Branches | `if cond:` -> `if not (cond):` | both paths of an `if` or `while` |
 
 Want another one? New mutations are small PRs: see the [good first issues](https://github.com/Sahil-u07/wouldcatch/labels/good%20first%20issue).
@@ -101,11 +103,12 @@ Want another one? New mutations are small PRs: see the [good first issues](https
 
 | Command | What it does |
 |---|---|
-| `wouldcatch` | Uncommitted changes, or the last commit if the tree is clean |
+| `wouldcatch` | Uncommitted changes; on a clean feature branch, everything since it left `main`; otherwise the last commit |
 | `wouldcatch --base main` | Everything on this branch since `main` |
 | `wouldcatch --cmd "pytest tests/unit -x -q"` | Use your own test command |
 | `wouldcatch --json` | Machine-readable output for scripts and agents |
 | `wouldcatch --all` | Show caught mutants too |
+| `wouldcatch --github` | Also print GitHub annotations (automatic inside GitHub Actions) |
 | `wouldcatch --max 100` | Try more mutants (default 50) |
 
 Exit codes: `0` all caught · `1` something missed · `2` setup problem (not a git repo, tests already failing).
@@ -115,15 +118,25 @@ Skip a line on purpose with `# wouldcatch: ignore`.
 ## CI, pre-commit and AI agents
 
 <details open>
-<summary><b>GitHub Actions</b>: check every pull request</summary>
+<summary><b>GitHub Action</b>: missed bugs show up on the exact lines of the pull request</summary>
 
 ```yaml
-- uses: actions/checkout@v5
-  with:
-    fetch-depth: 0
-- run: pip install wouldcatch pytest
-- run: wouldcatch --base origin/${{ github.base_ref }}
+on: pull_request
+jobs:
+  wouldcatch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: pip install -e . pytest   # your project and its test deps
+      - uses: Sahil-u07/wouldcatch@v0.2.0
 ```
+
+Inputs (all optional): `cmd` (test command), `base` (defaults to the PR's base branch), `max` (default 50), `fail-on-missed` (default `true`).
 </details>
 
 <details>
@@ -133,7 +146,7 @@ With wouldcatch installed in your project environment:
 
 ```yaml
 - repo: https://github.com/Sahil-u07/wouldcatch
-  rev: v0.1.0
+  rev: v0.2.0
   hooks:
     - id: wouldcatch
 ```
