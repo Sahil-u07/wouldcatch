@@ -32,7 +32,9 @@ HERE = Path(__file__).resolve().parent / "wouldcatch-real"
 
 def run(cmd, cwd=None, check=True):
     print("  $", " ".join(map(str, cmd)))
-    return subprocess.run(cmd, cwd=cwd, check=check, capture_output=True, text=True)
+    # git and pytest print UTF-8; Windows would otherwise decode it as cp1252 and crash
+    return subprocess.run(cmd, cwd=cwd, check=check, capture_output=True,
+                          encoding="utf-8", errors="replace")
 
 
 def venv_python(venv):
