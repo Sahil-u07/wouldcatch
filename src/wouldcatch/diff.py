@@ -20,6 +20,8 @@ def repo_root(cwd="."):
 
 def is_test_file(path):
     p = Path(path)
+    if p.suffix != ".py":
+        return False
     return (
         p.name.startswith("test_")
         or p.name.endswith("_test.py")
