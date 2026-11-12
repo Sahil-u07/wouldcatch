@@ -133,7 +133,7 @@ jobs:
         with:
           python-version: "3.13"
       - run: pip install -e . pytest   # your project and its test deps
-      - uses: Sahil-u07/wouldcatch@v0.2.0
+      - uses: Sahil-u07/wouldcatch@v0.2.1
 ```
 
 Inputs (all optional): `cmd` (test command), `base` (defaults to the PR's base branch), `max` (default 50), `fail-on-missed` (default `true`).
@@ -146,7 +146,7 @@ With wouldcatch installed in your project environment:
 
 ```yaml
 - repo: https://github.com/Sahil-u07/wouldcatch
-  rev: v0.2.0
+  rev: v0.2.1
   hooks:
     - id: wouldcatch
 ```
@@ -177,14 +177,22 @@ git diff ──> changed lines ──> mutants ──> run tests per mutant ─�
 1. `git diff` gives the Python lines you changed.
 2. Each mutant is a tiny text edit at an exact position, so your formatting and comments stay untouched.
 3. Your test command runs once per mutant. A fresh bytecode cache each run means a stale `.pyc` can never hide a mutant.
-4. The file is restored byte for byte (CRLF included) after every run, even on Ctrl+C. If the process is killed, the next run restores it from `.wouldcatch-backup.json` first.
+4. The file is restored byte for byte (CRLF included) after every run, even on Ctrl+C. If the process is killed, the next run restores it from a backup kept inside `.git` first.
 
 ## FAQ
 
 <details>
+<summary><b>Isn't this what mutmut or pytestmut already do?</b></summary>
+
+Partly, and they're good tools. mutmut and cosmic-ray mutate the whole project, which is a thorough audit. [pytestmut](https://pytestmut.readthedocs.io/) also has a diff mode (`--diff`, `--staged`) and parallel workers, so if you need speed on a big suite, try it. Diff-based mutation testing isn't new in other languages either: [Infection](https://infection.github.io/guide/how-to.html) (PHP) and [Mull](https://mull.readthedocs.io/) (C/C++) both do it.
+
+wouldcatch aims at one workflow: zero config, run it on the change in front of you, get exact lines back. That includes warnings on the pull request diff through the GitHub Action, and a `--json` list an AI agent can turn into tests.
+</details>
+
+<details>
 <summary><b>Will it mess up my files?</b></summary>
 
-It edits one file at a time and restores it right after, byte for byte. If the process dies mid-run, the next run restores the file before doing anything else.
+It edits one file at a time and restores it right after, byte for byte. If the process dies mid-run, the next run restores the file from a backup kept inside `.git` before doing anything else.
 </details>
 
 <details>

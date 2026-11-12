@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 
@@ -54,6 +55,9 @@ def test_weak_tests_miss_bugs_and_file_is_restored(repo, capsys):
     assert {m["line"] for m in out["mutants"]} <= {2, 3}  # only the changed lines
     assert (repo / "calc.py").read_text() == CALC_NEW
     assert not (repo / ".wouldcatch-backup.json").exists()
+    assert not (repo / ".git" / "wouldcatch-backup.json").exists()
+    assert subprocess.run(["git", "status", "--porcelain"], cwd=repo, capture_output=True,
+                          text=True).stdout.split() == ["M", "calc.py", "M", "test_calc.py"]  # nothing left behind
 
 
 def test_strong_tests_catch_everything(repo, capsys):
@@ -178,3 +182,57 @@ def test_branch_on_trunk_uses_last_commit(repo):
     sh("git", "branch", "-f", "master", "HEAD~2", cwd=repo)
     from wouldcatch.diff import pick_base
     assert pick_base(repo) == "HEAD~1"
+
+
+def test_backup_outside_repo_is_ignored(repo, tmp_path, capsys):
+    outside = tmp_path.parent / "victim.py"
+    outside.write_text("keep me")
+    (repo / ".git" / "wouldcatch-backup.json").write_text(json.dumps({
+        "../victim.py": "pwned", "notes.txt": "pwned", "calc.py": CALC_NEW}))
+    (repo / "notes.txt").write_text("keep me")
+    (repo / "calc.py").write_text("broken = (")
+    (repo / "test_calc.py").write_text(STRONG_TEST)
+    run(capsys)
+    assert outside.read_text() == "keep me"
+    assert (repo / "notes.txt").read_text() == "keep me"
+    assert (repo / "calc.py").read_text() == CALC_NEW
+
+
+def test_second_run_is_refused_while_one_is_active(repo, capsys):
+    from wouldcatch.cli import lock_repo
+    held = lock_repo(repo)
+    assert held is not None
+    try:
+        assert main(["--json"]) == 2
+        assert "already working" in capsys.readouterr().err
+    finally:
+        held.close()
+    assert lock_repo(repo) is not None
+
+
+def test_max_must_be_positive(repo):
+    with pytest.raises(SystemExit):
+        main(["--max", "0"])
+
+
+def test_timeout_is_reported_separately(repo, capsys):
+    (repo / "test_calc.py").write_text(STRONG_TEST)
+    (repo / "original.txt").write_text(CALC_NEW)
+    # hangs whenever calc.py is mutated, passes on the original
+    slow = (f'"{sys.executable}" -c "import time,pathlib as p; '
+            f"time.sleep(30) if p.Path('calc.py').read_text() != p.Path('original.txt').read_text() else None\"")
+    main(["--json", "--cmd", slow, "--max", "1"])
+    (m,) = json.loads(capsys.readouterr().out)["mutants"]
+    assert m["status"] == "timeout"
+
+
+def test_finds_a_python_with_pytest_even_from_pipx(repo, tmp_path, monkeypatch):
+    import venv
+    from wouldcatch.cli import find_python, venv_python
+    bare = tmp_path / "pipx-like"
+    venv.create(bare, with_pip=False)
+    monkeypatch.setattr(sys, "executable", venv_python(bare))
+    monkeypatch.setenv("VIRTUAL_ENV", str(tmp_path / "missing"))
+    monkeypatch.setenv("PATH", os.path.dirname(sys.__dict__.get("_base_executable", "")) + os.pathsep + os.environ["PATH"])
+    py = find_python(repo)
+    assert py and py != venv_python(bare)

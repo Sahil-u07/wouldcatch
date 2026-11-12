@@ -77,3 +77,20 @@ def test_break_continue_swap():
     got = muts("for i in x:\n    if i:\n        break\n    continue\n")
     assert (3, "break", "continue") in got
     assert (4, "continue", "break") in got
+
+
+def test_operator_on_a_continuation_line_gets_its_own_line():
+    src = "def calc(a, b):\n    result = (\n        a\n        + b\n    )\n    return result\n"
+    assert (4, "+", "-") in muts(src, {4})
+
+
+def test_operators_in_comments_and_strings_are_never_touched():
+    src = 'x = (\n    a  # a + b in a comment\n    + b\n)\ny = "a < b" < z\n'
+    for m in find_mutants("x.py", src, set(range(1, 6))):
+        changed = m.apply(src)
+        assert "# a + b in a comment" in changed and '"a < b"' in changed
+
+
+def test_test_py_and_tests_py_are_test_files():
+    from wouldcatch.diff import is_test_file
+    assert is_test_file("pkg/test.py") and is_test_file("pkg/tests.py") and not is_test_file("pkg/core.py")

@@ -22,6 +22,7 @@ def is_test_file(path):
     p = Path(path)
     return (
         p.name.startswith("test_")
+        or p.name in ("test.py", "tests.py")
         or p.name.endswith("_test.py")
         or p.name == "conftest.py"
         or any(part in ("tests", "test") for part in p.parts[:-1])

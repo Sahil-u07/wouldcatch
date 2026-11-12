@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.1
+
+Fixes from an outside code review. Every item has a regression test.
+
+- Operators are now found with Python's tokenizer, not a text search. An operator inside a comment can no longer be "mutated" (which gave a false MISSED), and an operator on a continuation line of a multi-line expression is mutated when that line changes.
+- Works when installed with pipx: the default test command now uses the project's Python (active virtualenv, `.venv`/`venv` in the repo, or `python` on PATH) instead of wouldcatch's own isolated interpreter.
+- Crash recovery is safer: the backup now lives inside `.git`, is written atomically, and restoring it only ever writes `.py` files inside the repo.
+- Two runs in the same repo can't collide: a second run stops with a clear message.
+- Timeouts show as `timeout` instead of `caught`, and a run cut short by `--max` says it's a partial result (`"complete": false` in JSON).
+- `--max` must be at least 1.
+- `test.py` and `tests.py` count as test files and are never mutated.
+
 ## 0.2.0
 
 - GitHub Action: `uses: Sahil-u07/wouldcatch@v0.2.0`. Missed mutants show up as warnings on the exact lines of the pull request.
