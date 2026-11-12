@@ -112,3 +112,10 @@ def test_typescript_number_arithmetic_is_still_mutated():
 def test_integer_constants_only():
     got = muts("const a = 0;\nconst b = 1.5;\nconst c = 0x10;\nconst d = 1_000;\n")
     assert got == {(1, "0", "1")}
+
+
+def test_modulo_and_exponent():
+    got = muts("const a = x % 2;\nconst b = x ** 2;\ny %= 3;\n")
+    assert (1, "%", "*") in got
+    assert (2, "**", "*") in got
+    assert (3, "%=", "*=") in got

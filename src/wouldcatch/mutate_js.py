@@ -14,10 +14,10 @@ TYPED = {".ts", ".tsx", ".mts", ".cts"}
 BINARY = {
     "===": "!==", "!==": "===", "==": "!=", "!=": "==",
     "<": "<=", "<=": "<", ">": ">=", ">=": ">",
-    "+": "-", "-": "+", "*": "/", "/": "*",
+    "+": "-", "-": "+", "*": "/", "/": "*", "%": "*", "**": "*",
     "&&": "||", "||": "&&",
 }
-AUGMENTED = {"+=": "-=", "-=": "+=", "*=": "/=", "/=": "*="}
+AUGMENTED = {"+=": "-=", "-=": "+=", "*=": "/=", "/=": "*=", "%=": "*=", "**=": "*="}
 SWAP_CALL = {"min": "max", "max": "min"}
 LOOPS = {"for_statement", "for_in_statement", "while_statement", "do_statement"}
 # A `break` directly inside one of these is not a loop exit (or has no loop at all).

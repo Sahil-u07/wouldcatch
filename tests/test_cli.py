@@ -70,6 +70,8 @@ def test_strong_tests_catch_everything(repo, capsys):
 def test_failing_baseline_stops(repo, capsys):
     (repo / "test_calc.py").write_text("def test_bad():\n    assert False\n")
     assert main(["--cmd", f'"{sys.executable}" -m pytest -q']) == 2
+    err = capsys.readouterr().err
+    assert "  | " in err and "test_bad" in err  # shows why the tests failed
 
 
 def test_last_commit_used_when_tree_is_clean(repo, capsys):

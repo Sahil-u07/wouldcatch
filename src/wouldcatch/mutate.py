@@ -21,7 +21,8 @@ COMPARE = {
     ast.Is: (["is"], "is not"), ast.IsNot: (["is", "not"], "is"),
     ast.In: (["in"], "not in"), ast.NotIn: (["not", "in"], "in"),
 }
-BINARY = {ast.Add: (["+"], "-"), ast.Sub: (["-"], "+"), ast.Mult: (["*"], "/"), ast.Div: (["/"], "*")}
+BINARY = {ast.Add: (["+"], "-"), ast.Sub: (["-"], "+"), ast.Mult: (["*"], "/"), ast.Div: (["/"], "*"),
+          ast.FloorDiv: (["//"], "/"), ast.Mod: (["%"], "*"), ast.Pow: (["**"], "*")}
 BOOL = {ast.And: (["and"], "or"), ast.Or: (["or"], "and")}
 SWAP_CALL = {"min": "max", "max": "min"}
 
@@ -111,7 +112,12 @@ def find_mutants(path, text, lines):
                     swap_in_gap(left, right, *COMPARE[type(op)])
                 left = right
         elif isinstance(node, ast.BinOp) and type(node.op) in BINARY:
-            swap_in_gap(node.left, node.right, *BINARY[type(node.op)])
+            # "%s" % x is string formatting, not arithmetic
+            formatting = isinstance(node.op, ast.Mod) and (
+                isinstance(node.left, ast.JoinedStr)
+                or isinstance(node.left, ast.Constant) and isinstance(node.left.value, (str, bytes)))
+            if not formatting:
+                swap_in_gap(node.left, node.right, *BINARY[type(node.op)])
         elif isinstance(node, ast.AugAssign) and type(node.op) in BINARY:
             (sym,), rep = BINARY[type(node.op)]
             swap_in_gap(node.target, node.value, [sym + "="], rep + "=")

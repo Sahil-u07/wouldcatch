@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1
+
+- New mutations: `//` -> `/`, `%` -> `*`, `**` -> `*` in Python (string formatting with `%` is left alone), `%` -> `*` and `**` -> `*` in JavaScript and TypeScript, plus their `%=` and `**=` forms.
+- When your tests already fail before any mutant is tried, the end of the test output is shown, so you can see why.
+
 ## 0.3.0
 
 - JavaScript and TypeScript support (#4): `pip install "wouldcatch[js]"`. Covers `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, `.cts`.

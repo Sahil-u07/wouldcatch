@@ -94,3 +94,16 @@ def test_operators_in_comments_and_strings_are_never_touched():
 def test_test_py_and_tests_py_are_test_files():
     from wouldcatch.diff import is_test_file
     assert is_test_file("pkg/test.py") and is_test_file("pkg/tests.py") and not is_test_file("pkg/core.py")
+
+
+def test_floor_div_mod_and_pow():
+    got = muts("a = x // y\nb = x % y\nc = x ** y\nd %= 2\n")
+    assert (1, "//", "/") in got
+    assert (2, "%", "*") in got
+    assert (3, "**", "*") in got
+    assert (4, "%=", "*=") in got
+
+
+def test_string_formatting_percent_is_not_arithmetic():
+    got = muts('a = "%s items" % n\nb = f"{x}" % n\n')
+    assert not any(orig == "%" for _, orig, _ in got)

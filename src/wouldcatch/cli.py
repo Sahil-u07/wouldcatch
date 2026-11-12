@@ -82,7 +82,8 @@ def paint(text, code):
     return f"\033[{code}m{text}\033[0m" if COLOR else text
 
 
-def run_tests(cmd, root, timeout, js=False):
+def run_tests(cmd, root, timeout, js=False, show_failure=False):
+    """Run the test command. With show_failure, print the end of its output if it fails."""
     env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
     if js:
         env.setdefault("CI", "true")  # stops jest and vitest from starting watch mode
@@ -91,9 +92,13 @@ def run_tests(cmd, root, timeout, js=False):
         env["PYTHONPYCACHEPREFIX"] = cache
         try:
             p = subprocess.run(cmd, shell=True, cwd=root, env=env, timeout=timeout,
-                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                               stdout=subprocess.PIPE if show_failure else subprocess.DEVNULL,
+                               stderr=subprocess.STDOUT if show_failure else subprocess.DEVNULL)
         except subprocess.TimeoutExpired:
             return "timeout"
+    if p.returncode != 0 and show_failure:
+        tail = p.stdout.decode("utf-8", errors="replace").splitlines()[-15:]
+        print("\n".join("  | " + line for line in tail), file=sys.stderr)
     return "passed" if p.returncode == 0 else "failed"
 
 
@@ -261,8 +266,8 @@ def main(argv=None):
         if cmd in baselines:
             continue
         t0 = time.time()
-        if run_tests(cmd, root, None, js) != "passed":
-            print("wouldcatch: your tests fail before any change. Fix them first.\n"
+        if run_tests(cmd, root, None, js, show_failure=True) != "passed":
+            print("wouldcatch: your tests fail before any change (output above). Fix them first.\n"
                   f"  command: {cmd}", file=sys.stderr)
             return 2
         baselines[cmd] = time.time() - t0  # wouldcatch: ignore (wall-clock time, not testable exactly)
