@@ -171,6 +171,8 @@ def main(argv=None):
     ap.add_argument("--base", help="git ref to diff against (default: uncommitted changes, else last commit)")
     ap.add_argument("--cmd", help="test command (default: pytest, run with your project's Python)")
     ap.add_argument("--max", type=positive, default=50, help="max mutants to try (default: 50)")
+    ap.add_argument("--allow-partial", action="store_true",
+                    help="exit 0 even if --max left some mutants untried (default: exit 3)")
     ap.add_argument("--json", action="store_true", help="print results as JSON (for scripts and AI agents)")
     ap.add_argument("--all", action="store_true", help="list caught mutants too")
     ap.add_argument("--github", action="store_true",
@@ -236,10 +238,11 @@ def main(argv=None):
         print(" " * 100, end="\r", file=sys.stderr)
 
     missed = [m for m in mutants if m.status == "missed"]
-    caught = len(mutants) - len(missed)
+    timeouts = sum(m.status == "timeout" for m in mutants)
+    caught = len(mutants) - len(missed) - timeouts  # a timeout is not proof a test caught it
     if args.json:
         print(json.dumps({
-            "base": base, "caught": caught, "missed": len(missed), "skipped": skipped,
+            "base": base, "caught": caught, "missed": len(missed), "timeout": timeouts, "skipped": skipped,
             "complete": skipped == 0,
             "mutants": [{"file": m.path, "line": m.line, "original": m.original,
                          "mutated": m.replacement, "status": m.status} for m in mutants],
@@ -255,16 +258,19 @@ def main(argv=None):
             print(paint(f"{len(missed)} bug(s) your tests would not notice.", "31"),
                   "Add a test that fails for each MISSED line.")
         else:
-            print("Your tests would notice every one of these bugs.")
-        timeouts = sum(m.status == "timeout" for m in mutants)
+            print("No mutant got past your tests." if timeouts else "Your tests would notice every one of these bugs.")
         if timeouts:
-            print(f"({timeouts} counted as caught because the tests hung or ran too long.)")
+            print(paint(f"{timeouts} timed out: the tests hung or ran too long, so those are inconclusive, "
+                        "not caught. Use --all to see them.", "33"))
         if skipped:
-            print(paint(f"Partial result: {skipped} more mutants not tried. Raise --max to try them.", "33"))
+            print(paint(f"Partial result: {skipped} more mutants not tried. Raise --max to try them"
+                        + (" (exit code 3)." if not args.allow_partial else "."), "33"))
         if args.github or os.environ.get("GITHUB_ACTIONS") == "true":
             for m in missed:
                 print(annotation(m))
-    return 1 if missed else 0
+    if missed:
+        return 1
+    return 3 if skipped and not args.allow_partial else 0
 
 
 if __name__ == "__main__":

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.2
+
+- Timeouts are no longer counted as caught. They get their own count (`"timeout"` in JSON) and a line in the summary.
+- A run that `--max` cut short now exits with code 3 instead of 0, so CI can't pass on a partial check. `--allow-partial` (Action input `allow-partial`) restores the old behavior.
+
 ## 0.2.1
 
 Fixes from an outside code review. Every item has a regression test.

@@ -236,3 +236,25 @@ def test_finds_a_python_with_pytest_even_from_pipx(repo, tmp_path, monkeypatch):
     monkeypatch.setenv("PATH", os.path.dirname(sys.__dict__.get("_base_executable", "")) + os.pathsep + os.environ["PATH"])
     py = find_python(repo)
     assert py and py != venv_python(bare)
+
+
+def test_partial_run_exits_3_unless_allowed(repo, capsys):
+    (repo / "test_calc.py").write_text(STRONG_TEST)
+    code, out = run(capsys, "--max", "1")
+    assert out["missed"] == 0 and out["skipped"] > 0 and out["complete"] is False
+    assert code == 3
+    code, _ = run(capsys, "--max", "1", "--allow-partial")
+    assert code == 0
+
+
+def test_timeouts_are_not_counted_as_caught(repo, capsys, monkeypatch):
+    import wouldcatch.cli as cli
+    (repo / "test_calc.py").write_text(STRONG_TEST)
+    monkeypatch.setattr(cli, "test_mutant", lambda *a: "timeout")
+    code, out = run(capsys)
+    assert out["caught"] == 0 and out["missed"] == 0
+    assert out["timeout"] == len(out["mutants"]) > 0
+    assert code == 0
+    main(["--cmd", f'"{sys.executable}" -m pytest -q -p no:cacheprovider'])
+    text = capsys.readouterr().out
+    assert "0/" in text and "timed out" in text and "would notice every" not in text

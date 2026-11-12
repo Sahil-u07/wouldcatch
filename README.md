@@ -111,7 +111,9 @@ Want another one? New mutations are small PRs: see the [good first issues](https
 | `wouldcatch --github` | Also print GitHub annotations (automatic inside GitHub Actions) |
 | `wouldcatch --max 100` | Try more mutants (default 50) |
 
-Exit codes: `0` all caught · `1` something missed · `2` setup problem (not a git repo, tests already failing).
+Exit codes: `0` nothing missed · `1` something missed · `2` setup problem (not a git repo, tests already failing) · `3` incomplete: `--max` left mutants untried (pass `--allow-partial` to accept that).
+
+A mutant whose test run times out is reported as `timeout`, separately from caught: a hang isn't proof that a test checks that line.
 
 Skip a line on purpose with `# wouldcatch: ignore`.
 
@@ -133,10 +135,10 @@ jobs:
         with:
           python-version: "3.13"
       - run: pip install -e . pytest   # your project and its test deps
-      - uses: Sahil-u07/wouldcatch@v0.2.1
+      - uses: Sahil-u07/wouldcatch@v0.2.2
 ```
 
-Inputs (all optional): `cmd` (test command), `base` (defaults to the PR's base branch), `max` (default 50), `fail-on-missed` (default `true`).
+Inputs (all optional): `cmd` (test command), `base` (defaults to the PR's base branch), `max` (default 50), `allow-partial` (default `false`), `fail-on-missed` (default `true`).
 </details>
 
 <details>
@@ -146,7 +148,7 @@ With wouldcatch installed in your project environment:
 
 ```yaml
 - repo: https://github.com/Sahil-u07/wouldcatch
-  rev: v0.2.1
+  rev: v0.2.2
   hooks:
     - id: wouldcatch
 ```
