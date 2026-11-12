@@ -40,6 +40,16 @@ wouldcatch
 
 That's it. No config file, no plugin, zero dependencies. It reads your `git diff`, runs `pytest`, and cleans up after itself.
 
+**JavaScript and TypeScript** work the same way, with one extra piece (a parser):
+
+```bash
+pipx install "wouldcatch[js]"
+cd your-repo
+wouldcatch                     # runs your package.json "test" script per mutant
+```
+
+It handles `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts` and `.cts`, and picks `npm`, `pnpm`, `yarn` or `bun` from your lockfile. Jest, Vitest, Mocha and `node --test` all work, since it only needs a command that exits non-zero when a test fails.
+
 ## The problem
 
 Two tests. Every line runs. Everything is green.
@@ -97,6 +107,8 @@ One change at a time, only on lines in your diff. Test files are never mutated.
 | Loops | `break` -> `continue` | how a loop ends early |
 | Branches | `if cond:` -> `if not (cond):` | both paths of an `if` or `while` |
 
+JavaScript and TypeScript get the same set in their own spelling: `===` -> `!==`, `&&` -> `||`, `!x` -> `x`, `true` -> `false`, `return x` -> `return undefined`, `Math.max` -> `Math.min`, `if (cond)` -> `if (!(cond))`. Type annotations, generics and JSX tags are never touched.
+
 Want another one? New mutations are small PRs: see the [good first issues](https://github.com/Sahil-u07/wouldcatch/labels/good%20first%20issue).
 
 ## Usage
@@ -135,7 +147,7 @@ jobs:
         with:
           python-version: "3.13"
       - run: pip install -e . pytest   # your project and its test deps
-      - uses: Sahil-u07/wouldcatch@v0.2.2
+      - uses: Sahil-u07/wouldcatch@v0.3.0
 ```
 
 Inputs (all optional): `cmd` (test command), `base` (defaults to the PR's base branch), `max` (default 50), `allow-partial` (default `false`), `fail-on-missed` (default `true`).
@@ -148,7 +160,7 @@ With wouldcatch installed in your project environment:
 
 ```yaml
 - repo: https://github.com/Sahil-u07/wouldcatch
-  rev: v0.2.2
+  rev: v0.3.0
   hooks:
     - id: wouldcatch
 ```
@@ -164,7 +176,7 @@ Agents are good at writing tests that pass and bad at writing tests that would f
 **Any other agent:** add this to `AGENTS.md`:
 
 ```
-After changing Python code, run `wouldcatch --json`. For every mutant with
+After changing Python, JavaScript or TypeScript code, run `wouldcatch --json`. For every mutant with
 "status": "missed", add a test that fails for that change. Re-run until none are missed.
 Never change the source code to make a mutant go away.
 ```
@@ -176,7 +188,7 @@ Never change the source code to make a mutant go away.
 git diff ──> changed lines ──> mutants ──> run tests per mutant ──> restore file ──> report
 ```
 
-1. `git diff` gives the Python lines you changed.
+1. `git diff` gives the Python, JavaScript and TypeScript lines you changed.
 2. Each mutant is a tiny text edit at an exact position, so your formatting and comments stay untouched.
 3. Your test command runs once per mutant. A fresh bytecode cache each run means a stale `.pyc` can never hide a mutant.
 4. The file is restored byte for byte (CRLF included) after every run, even on Ctrl+C. If the process is killed, the next run restores it from a backup kept inside `.git` first.
@@ -210,9 +222,11 @@ That happens (a log interval, a cache size). Mark the line `# wouldcatch: ignore
 </details>
 
 <details>
-<summary><b>JavaScript, TypeScript, Go?</b></summary>
+<summary><b>Which languages?</b></summary>
 
-Python today. The git side is language-neutral and JS/TS is next. Weigh in on [issue #4](https://github.com/Sahil-u07/wouldcatch/issues/4).
+Python out of the box. JavaScript and TypeScript with `pip install "wouldcatch[js]"`, which adds the tree-sitter parser. A repo with both gets both checked in one run.
+
+Two limits on the JS/TS side for now: the default command needs a `package.json` at the repo root (in a monorepo, pass `--cmd`), and if your test runner type-checks (ts-jest does), a mutant that only breaks the types counts as caught.
 </details>
 
 ## Contributing

@@ -13,6 +13,7 @@ from pathlib import Path
 
 from . import __version__
 from .diff import changed_lines, git, pick_base, repo_root
+from . import mutate_js
 from .mutate import find_mutants
 
 OLD_BACKUP = ".wouldcatch-backup.json"  # where versions up to 0.2.0 kept it
@@ -45,6 +46,21 @@ def find_python(root):
     return None
 
 
+def is_js(path):
+    return Path(path).suffix in mutate_js.SUFFIXES
+
+
+def js_test_cmd(root):
+    """The project's own test script, run with whichever package manager it uses."""
+    if not (root / "package.json").is_file():
+        return None  # shortcut: only a package.json at the repo root; monorepos pass --cmd
+    for lockfile, cmd in (("pnpm-lock.yaml", "pnpm test"), ("yarn.lock", "yarn test"),
+                          ("bun.lock", "bun test"), ("bun.lockb", "bun test")):
+        if (root / lockfile).is_file():
+            return cmd
+    return "npm test"
+
+
 def positive(value):
     n = int(value)
     if n < 1:
@@ -66,8 +82,10 @@ def paint(text, code):
     return f"\033[{code}m{text}\033[0m" if COLOR else text
 
 
-def run_tests(cmd, root, timeout):
+def run_tests(cmd, root, timeout, js=False):
     env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
+    if js:
+        env.setdefault("CI", "true")  # stops jest and vitest from starting watch mode
     # A fresh bytecode cache per run, so a stale .pyc can never hide a mutant.
     with tempfile.TemporaryDirectory() as cache:
         env["PYTHONPYCACHEPREFIX"] = cache
@@ -103,18 +121,18 @@ def lock_repo(root):
 
 
 def inside(root, rel):
-    """The real path of `rel` if it is a .py file inside the repo, else None."""
+    """The real path of `rel` if it is a source file inside the repo, else None."""
     target = (root / rel).resolve()
     try:
         target.relative_to(root.resolve())
     except ValueError:
         return None
-    return target if target.suffix == ".py" and target.is_file() else None
+    return target if (target.suffix == ".py" or is_js(target)) and target.is_file() else None
 
 
 def restore_stale_backup(root, backup):
     """If a previous run was killed mid-mutation, put the original file back.
-    The backup is untrusted input: only .py files inside this repo are written."""
+    The backup is untrusted input: only source files inside this repo are written."""
     for b in (backup, root / OLD_BACKUP):
         if not b.exists():
             continue
@@ -144,7 +162,7 @@ def test_mutant(m, root, cmd, timeout, backup):
     save_backup(backup, m.path, original)
     try:
         write(target, m.apply(original))
-        result = run_tests(cmd, root, timeout)
+        result = run_tests(cmd, root, timeout, is_js(m.path))
     finally:
         write(target, original)
         backup.unlink()
@@ -169,7 +187,7 @@ def annotation(m):
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="wouldcatch", description=__doc__)
     ap.add_argument("--base", help="git ref to diff against (default: uncommitted changes, else last commit)")
-    ap.add_argument("--cmd", help="test command (default: pytest, run with your project's Python)")
+    ap.add_argument("--cmd", help="test command (default: pytest for Python, the package.json test script for JS/TS)")
     ap.add_argument("--max", type=positive, default=50, help="max mutants to try (default: 50)")
     ap.add_argument("--allow-partial", action="store_true",
                     help="exit 0 even if --max left some mutants untried (default: exit 3)")
@@ -200,40 +218,61 @@ def main(argv=None):
         print(f"wouldcatch: {e}", file=sys.stderr)
         return 2
 
-    mutants = []
+    mutants, no_parser = [], []
     for path, lines in sorted(changes.items()):
-        text = read(root / path)
-        mutants += find_mutants(path, text, lines)
+        if is_js(path) and not mutate_js.available():
+            no_parser.append(path)
+            continue
+        finder = mutate_js.find_mutants if is_js(path) else find_mutants
+        mutants += finder(path, read(root / path), lines)
+    if no_parser:
+        log(f"wouldcatch: skipped {len(no_parser)} JavaScript/TypeScript file(s). "
+            'To check them too: pip install "wouldcatch[js]"')
     skipped = max(0, len(mutants) - args.max)
     mutants = mutants[: args.max]
 
     if not mutants:
-        msg = f"no mutable Python lines changed since {base}"
+        msg = f"no mutable lines changed since {base}"
         print(json.dumps({"base": base, "mutants": [], "message": msg}) if args.json else f"wouldcatch: {msg}")
         return 0
 
-    if args.cmd is None:
-        py = find_python(root)
-        if py is None:
-            print("wouldcatch: couldn't find a Python with pytest installed. Activate your project's\n"
-                  "virtual environment, install pytest, or pass --cmd \"your test command\".", file=sys.stderr)
-            return 2
-        args.cmd = f'"{py}" {PYTEST_ARGS}'
+    # One test command per language, unless --cmd overrides both.
+    cmds = {}
+    for js in sorted({is_js(m.path) for m in mutants}):
+        if args.cmd is not None:
+            cmds[js] = args.cmd
+        elif js:
+            cmds[js] = js_test_cmd(root)
+            if cmds[js] is None:
+                print("wouldcatch: no package.json at the repo root, so I don't know how to run your "
+                      'JavaScript tests. Pass --cmd "your test command".', file=sys.stderr)
+                return 2
+        else:
+            py = find_python(root)
+            if py is None:
+                print("wouldcatch: couldn't find a Python with pytest installed. Activate your project's\n"
+                      "virtual environment, install pytest, or pass --cmd \"your test command\".", file=sys.stderr)
+                return 2
+            cmds[js] = f'"{py}" {PYTEST_ARGS}'
     log(f"wouldcatch: {len(mutants)} mutants on {sum(map(len, changes.values()))} changed lines "
         f"in {len(changes)} file(s), base {base}")
-    t0 = time.time()
-    if run_tests(args.cmd, root, None) != "passed":
-        print("wouldcatch: your tests fail before any change. Fix them first.\n"
-              f"  command: {args.cmd}", file=sys.stderr)
-        return 2
-    baseline = time.time() - t0  # wouldcatch: ignore (wall-clock time, not testable exactly)
-    timeout = timeout_for(baseline)
-    log(f"wouldcatch: tests take {duration(baseline)}, so about {duration(baseline * len(mutants))} "  # wouldcatch: ignore (log text)
-        f"for {len(mutants)} mutants. Narrow --cmd to go faster.")
+    baselines = {}
+    for js, cmd in cmds.items():
+        if cmd in baselines:
+            continue
+        t0 = time.time()
+        if run_tests(cmd, root, None, js) != "passed":
+            print("wouldcatch: your tests fail before any change. Fix them first.\n"
+                  f"  command: {cmd}", file=sys.stderr)
+            return 2
+        baselines[cmd] = time.time() - t0  # wouldcatch: ignore (wall-clock time, not testable exactly)
+    total = sum(baselines[cmds[is_js(m.path)]] for m in mutants)
+    log(f"wouldcatch: about {duration(total)} for {len(mutants)} mutants. Narrow --cmd to go faster.")  # wouldcatch: ignore (log text)
 
     for i, m in enumerate(mutants, 1):
         log(f"  [{i}/{len(mutants)}] {m.path}:{m.line} {m.describe()}", end="\r" if sys.stderr.isatty() else "\n")
-        m.status = test_mutant(m, root, args.cmd, timeout, backup)
+        cmd = cmds[is_js(m.path)]
+        m.status = test_mutant(m, root, cmd, timeout_for(baselines[cmd]), backup)
     if sys.stderr.isatty() and not args.json:
         print(" " * 100, end="\r", file=sys.stderr)
 

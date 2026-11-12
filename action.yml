@@ -10,7 +10,7 @@ inputs:
     description: Git ref to compare against. Defaults to the pull request's base branch.
     default: ""
   cmd:
-    description: Test command. Defaults to pytest.
+    description: Test command. Defaults to pytest for Python and the package.json test script for JS/TS.
     default: ""
   max:
     description: Maximum number of mutants to try.
@@ -27,7 +27,7 @@ runs:
   steps:
     - name: Install wouldcatch
       shell: bash
-      run: python -m pip install --quiet "${{ github.action_path }}"
+      run: python -m pip install --quiet "${{ github.action_path }}[js]"
     - name: Run wouldcatch
       shell: bash
       env:

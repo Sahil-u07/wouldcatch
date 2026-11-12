@@ -5,13 +5,16 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "wouldcatch"
 dynamic = ["version"]
-description = "Would your tests catch a bug in the lines you just changed? Mutation testing for your git diff."
+description = "Would your tests catch a bug in the lines you just changed? Mutation testing for your git diff: Python, JavaScript and TypeScript."
 readme = "README.md"
 license = { text = "MIT" }
 authors = [{ name = "Sahil Lenka" }]
 requires-python = ">=3.10"
 dependencies = []
-keywords = ["mutation-testing", "testing", "pytest", "git", "code-review", "ai-agents"]
+
+[project.optional-dependencies]
+js = ["tree-sitter>=0.23", "tree-sitter-javascript>=0.23", "tree-sitter-typescript>=0.23"]
+keywords = ["mutation-testing", "testing", "pytest", "javascript", "typescript", "git", "code-review", "ai-agents"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",

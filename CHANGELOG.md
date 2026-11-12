@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0
+
+- JavaScript and TypeScript support (#4): `pip install "wouldcatch[js]"`. Covers `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, `.cts`.
+- Code is parsed with tree-sitter, so operators inside strings, comments, regexes, template literals, type annotations, generics and JSX tags are never mutated.
+- The default test command for JS/TS is the `package.json` test script, run with npm, pnpm, yarn or bun depending on the lockfile.
+- Test, spec, config, story and `.d.ts` files are never mutated.
+- A repo with Python and JS/TS changes gets both checked in one run, each with its own test command.
+- Without the `js` extra, JS/TS files are skipped with a hint. The Python core still has zero dependencies.
+
 ## 0.2.2
 
 - Timeouts are no longer counted as caught. They get their own count (`"timeout"` in JSON) and a line in the summary.

@@ -1,9 +1,13 @@
-"""Find which Python lines changed, using git."""
+"""Find which source lines changed, using git."""
 
 import re
 import subprocess
 from pathlib import Path
 
+JS_SUFFIXES = (".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts")
+SOURCES = ["*.py"] + ["*" + s for s in JS_SUFFIXES]
+JS_TEST = re.compile(r"\.(test|spec|config|stories)\.[cm]?[jt]sx?$|\.d\.[cm]?ts$")
+JS_TEST_DIRS = {"__tests__", "__mocks__", "node_modules", "e2e", "cypress"}
 HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 
 
@@ -20,6 +24,8 @@ def repo_root(cwd="."):
 
 def is_test_file(path):
     p = Path(path)
+    if p.suffix in JS_SUFFIXES and (JS_TEST.search(p.name) or JS_TEST_DIRS & set(p.parts)):
+        return True
     return (
         p.name.startswith("test_")
         or p.name in ("test.py", "tests.py")
@@ -30,14 +36,14 @@ def is_test_file(path):
 
 
 def untracked(root):
-    out = git("ls-files", "--others", "--exclude-standard", "--", "*.py", cwd=root)
+    out = git("ls-files", "--others", "--exclude-standard", "--", *SOURCES, cwd=root)
     return [line for line in out.splitlines() if line]
 
 
 def pick_base(root):
     """Uncommitted changes if there are any; on a feature branch, everything since
     it split from main; otherwise the last commit."""
-    dirty = git("diff", "--name-only", "HEAD", "--", "*.py", cwd=root).strip()
+    dirty = git("diff", "--name-only", "HEAD", "--", *SOURCES, cwd=root).strip()
     if dirty or untracked(root):
         return "HEAD"
     head = git("rev-parse", "HEAD", cwd=root).strip()
@@ -53,8 +59,8 @@ def pick_base(root):
 
 
 def changed_lines(root, base):
-    """Return {path: set of changed line numbers} for non-test .py files."""
-    out = git("diff", "-U0", "--no-color", "--no-ext-diff", base, "--", "*.py", cwd=root)
+    """Return {path: set of changed line numbers} for non-test source files."""
+    out = git("diff", "-U0", "--no-color", "--no-ext-diff", base, "--", *SOURCES, cwd=root)
     changes, path = {}, None
     for line in out.splitlines():
         if line.startswith("+++ "):

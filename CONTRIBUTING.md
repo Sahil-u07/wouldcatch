@@ -7,14 +7,14 @@ Thanks for helping. Small PRs get merged fastest.
 ```bash
 git clone https://github.com/Sahil-u07/wouldcatch
 cd wouldcatch
-pip install -e . pytest
+pip install -e ".[js]" pytest
 pytest
 ```
 
 ## Where things live
 
 - `src/wouldcatch/diff.py` finds the changed lines with `git diff`.
-- `src/wouldcatch/mutate.py` finds mutants. Each one is a text edit, so formatting and comments stay as written.
+- `src/wouldcatch/mutate.py` finds Python mutants, `src/wouldcatch/mutate_js.py` finds JavaScript and TypeScript ones (tree-sitter). Each one is a text edit, so formatting and comments stay as written.
 - `src/wouldcatch/cli.py` runs the tests per mutant and prints the report.
 
 ## Adding a mutation
