@@ -11,9 +11,6 @@ license = { text = "MIT" }
 authors = [{ name = "Sahil Lenka" }]
 requires-python = ">=3.10"
 dependencies = []
-
-[project.optional-dependencies]
-js = ["tree-sitter>=0.23", "tree-sitter-javascript>=0.23", "tree-sitter-typescript>=0.23"]
 keywords = ["mutation-testing", "testing", "pytest", "javascript", "typescript", "git", "code-review", "ai-agents"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -23,6 +20,9 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Topic :: Software Development :: Testing",
 ]
+
+[project.optional-dependencies]
+js = ["tree-sitter>=0.23", "tree-sitter-javascript>=0.23", "tree-sitter-typescript>=0.23"]
 
 [project.urls]
 Homepage = "https://github.com/Sahil-u07/wouldcatch"
