@@ -31,7 +31,7 @@ wouldcatch plants small bugs in **only the lines you just changed**, runs your t
 Works on **Python, JavaScript and TypeScript**, on Windows, macOS and Linux.
 
 <p align="center">
-  <img src="docs/demo.gif" alt="wouldcatch finds 3 bugs the tests miss, then 0 after one more test" width="800">
+  <img src="docs/demo.gif" alt="Two passing tests with 100% coverage. wouldcatch changes one thing at a time in shop.py, finds 3 changes no test notices, then 7 of 7 are caught after adding two asserts." width="880">
 </p>
 
 ## Quick start
